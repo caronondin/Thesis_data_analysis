@@ -92,6 +92,8 @@ ggplot(results, aes(x = depth, y = mse)) +
 
 #1.c. random forest 
 
+###### STOPPED HERE: NEED TO FIGURE OUT HOW TO DEAL WITH MISSING VALUES##########
+
 #bagged tree 
 set.seed(1)
 bag.tree <- randomForest(fat ~., data = dataset, subset = train, mtry = 2207,
