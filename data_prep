@@ -1,0 +1,395 @@
+####### THIS IS ALL USING THE NPAAS-OS DATASET ##########
+#Libraries 
+library(tidyverse)
+library(dplyr)
+library(haven)
+library(readr)
+
+#setting working directory to the NPAAS dataset
+NPAAS_OS_dir  <- '/Users/cnondin/Documents/THESIS/dataset/NPAAS_OS_dataset/'
+setwd(NPAAS_OS_dir)
+data <- read.csv('npaas_inv.csv')
+
+#creating a second dataset with the pertinent variables
+data_var <- data
+#selecting the demographic variables we need (+the outcome)
+data_var_select <- data_var %>% select(id, agev1, black, hispanic, othrace, bmi, cigsday, educcoll, 
+                    educlehs, texpwk, inc20to35, inc50to75, incge75, inclt20, bioenergy_TEE)
+
+#changing the age variable 
+# YOU WILL NEED TO CHANGE THE NB RANGE FOR THE FS DATASET! (the range is more spread out here)
+df <- data_var_select
+df$agev1[df$agev1 > 55 & df$agev1 <= 69] <- 0
+df$agev1[df$agev1 > 69 & df$agev1 <= 79] <- 1
+df$agev1[df$agev1 > 79 & df$agev1 <= 90] <- 2
+unique(df$agev1)
+data_var_select <- df
+
+#changing the ethnicity variable 
+df <- data_var_select
+ethnicity_df <- df %>% select(black, hispanic, othrace)
+ethnicity <- rowSums(ethnicity_df)
+df_ethn <- cbind(df, ethnicity)
+unique(df_ethn$ethnicity)
+data_var_select = subset(df_ethn, select = -c(black, hispanic, othrace))
+
+#changing the BMI variable 
+df <- data_var_select
+df$bmi[df$bmi > 16 & df$bmi <= 24] <- 0 #there are some underweight people in OS, but it shouldn't be a problem in the FS
+df$bmi[df$bmi > 24 & df$bmi <= 29] <- 1
+df$bmi[df$bmi > 29 & df$bmi <= 100] <- 2
+unique(df$bmi)
+data_var_select <- df
+
+#changing the cigsday variable 
+df <- data_var_select
+df$cigsday = ifelse(df$cigsday =="", 0, 1)
+unique(df$cigsday)
+data_var_select <- df
+
+#changing years of education
+df <- data_var_select
+#replacing NA to 3: 
+df$educcoll[is.na(df$educcoll)] <- 3
+df$educlehs[is.na(df$educlehs)] <- 3
+unique(df$educcoll)
+unique(df$educlehs)
+#changing educoll 1 value to 2 
+df$educcoll[df$educcoll == 1] <- 2
+unique(df$educcoll)
+# summing educoll and educlehs
+education_df <- df %>% select(educcoll, educlehs)
+edu <- rowSums(education_df)
+df_edu <- cbind(df, edu)
+unique(df_edu$edu)
+# changing 0 to 1 (some college) and 1 to 0 (HS or less) in the edu column and 6 to 3 (missing)
+df_edu$edu[df_edu$edu== 0]<-4 #did this cuz otherwise the 1s would turn into 0s in the next line. 
+df_edu$edu[df_edu$edu== 1]<-0
+df_edu$edu[df_edu$edu== 4]<-1
+df_edu$edu[df_edu$edu== 6]<-3
+unique(df_edu$edu)
+#deleting educoll and educlehs
+data_var_select = subset(df_edu, select = -c(educcoll, educlehs))
+
+#changing physical activity 
+df <- data_var_select 
+df$texpwk[df$texpwk >= 0 & df$texpwk <= 5.5] <- 0 
+df$texpwk[df$texpwk >= 5.6 & df$texpwk <= 12.25] <- 1 
+df$texpwk[df$texpwk >= 12.3 & df$texpwk <= 24.0] <- 2 
+df$texpwk[df$texpwk > 24] <- 3 
+df$texpwk[is.na(df$texpwk)] <- 4
+unique(df$texpwk)
+data_var_select <- df
+
+##### USING THE NPAAS-FS dataset###########
+#setting the directory
+NPAAS_FS_dir  <- '/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/'
+setwd(NPAAS_FS_dir)
+
+Age_hght_wght_df <- read.csv('NPAAS-FS(AS272)_form 275_visit_1_common_ID_Age_BodyWeight_Height.csv')
+
+data_var_FS <- Age_hght_wght_df
+
+#creating a dataframe with just the IDs and the age
+data_var_select_FS <- data_var_FS %>% select(WHI_COMMON_ID, AGE_AT_VISIT_1, BMI_V1, BMI_V2)
+#renaming the age variable 
+data_var_select_FS <- data_var_select_FS %>% 
+  rename(agev1_FS = AGE_AT_VISIT_1)
+
+#selecting the age variable
+df <- data_var_select_FS
+df$agev1_FS[df$agev1_FS >= 60 & df$agev1_FS <= 69] <- 0
+df$agev1_FS[df$agev1_FS >= 70 & df$agev1_FS <= 79] <- 1
+df$agev1_FS[df$agev1_FS >= 80 & df$agev1_FS <= 85] <- 2
+unique(df$agev1_FS)
+data_var_select_FS <- df
+
+#getting the BMI variables 
+
+#remember to check if any of the BMIs are different and, if they are not, only have one BMI variable (they are different)
+df <- data_var_select_FS
+#BMI_v1
+df$BMI_V1[df$BMI_V1 > 16 & df$BMI_V1 < 25] <- 0 
+df$BMI_V1[df$BMI_V1 >= 25 & df$BMI_V1 < 30] <- 1
+df$BMI_V1[df$BMI_V1 >=30 & df$BMI_V1 <= 100] <- 2
+unique(df$BMI_V1)
+
+#BMI_V2
+df$BMI_V2[df$BMI_V2 > 16 & df$BMI_V2 < 25] <- 0 
+df$BMI_V2[df$BMI_V2 >= 25 & df$BMI_V2 < 30] <- 1
+df$BMI_V2[df$BMI_V2 >=30 & df$BMI_V2 <= 100] <- 2
+unique(df$BMI_V2)
+
+data_var_select_FS <- df
+
+#supplement use variable
+suppl_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS_FS(AS272)_npfs_form_45_common_id.csv')
+df <- suppl_df %>% select(commonid, anysupp)
+
+#merging the main dataset with the supplement dataset 
+df <- df %>% 
+  rename(WHI_COMMON_ID = commonid)
+
+#finding the IDs that are in data_var_select but not in df
+data_var_select_FS %>% 
+  filter(!data_var_select_FS$WHI_COMMON_ID %in% df$WHI_COMMON_ID) #For df1 values not in df2
+
+#adding the missing IDs to the df
+new_row1 = c(WHI_COMMON_ID = 147896, anysupp= NA)
+new_row2 = c(WHI_COMMON_ID = 194493, anysupp = NA)
+new_row3 = c(WHI_COMMON_ID = 241500, anysupp = NA)
+new_row4 = c(WHI_COMMON_ID = 282974, anysupp = NA)
+df_bind = rbind(df,new_row1, new_row2, new_row3, new_row4)
+
+#sorting the df by ID
+df_bind[order(df_bind$WHI_COMMON_ID, decreasing=FALSE),, drop=FALSE]
+
+#binding the suppl column to the main dataframe 
+df_suppl <- cbind(data_var_select_FS, df_bind$anysupp)
+df_suppl <- df_suppl %>% 
+  rename(anysupp = `df_bind$anysupp`)
+data_var_select_FS <- df_suppl
+
+#Ethnicity variable 
+data_ethn <- read.csv('/Users/cnondin/Documents/THESIS/dataset/ethnicity /ethnicity_dataset.csv')
+df <- data_ethn %>% select(ID, RACENIH)
+
+#selecting rows to only get IDs from the FS dataset
+list_ID_FS = as.list(data_var_select_FS$WHI_COMMON_ID)
+df <- df[df$ID %in% list_ID_FS,]
+#sorting by ID 
+df <- df[order(df$ID, decreasing=FALSE),, drop=FALSE]
+#changing 5 to 0 (white), others to 1 (other ethnicity) and 9 to NAs 
+unique(df$RACENIH)
+df$RACENIH[df$RACENIH== 5]<-0 
+df$RACENIH[df$RACENIH== 6]<-1
+df$RACENIH[df$RACENIH== 2]<-1 
+df$RACENIH[df$RACENIH== 4]<-1 
+df$RACENIH[df$RACENIH== 9]<-NA 
+unique(df$RACENIH)
+
+#binding the main df and the new df
+df_bind = cbind(data_var_select_FS,df$RACENIH)
+#renaming the ethnicity column 
+df_bind <- df_bind %>% 
+  rename(ethnicity = `df$RACENIH`)
+
+data_var_select_FS <- df_bind
+
+#currently smoking variable 
+data_cigs <- read.csv('/Users/cnondin/Documents/THESIS/dataset/cigsperday/cigsperday.csv')
+#selecting the SMOKNOW variable 
+df <- data_cigs %>% select(ID, SMOKNOW)
+#selecting the IDs for the FS
+df <- df[df$ID %in% list_ID_FS,]
+df <- df[order(df$ID, decreasing=FALSE),, drop=FALSE]
+#binding the main df and the new df
+df_bind = cbind(data_var_select_FS,df$SMOKNOW)
+#renaming the ethnicity column 
+df_bind <- df_bind %>% 
+  rename(cignow = `df$SMOKNOW`)
+
+data_var_select_FS <- df_bind
+
+#season variable 
+season_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/MS3613_NPAAFS_seasonV2.csv')
+
+#finding missing IDs and giving them NA
+data_var_select_FS %>% 
+  filter(!data_var_select_FS$WHI_COMMON_ID %in% season_df$commonid)
+#adding the missing IDs to the df
+new_row1 = c(commonid = 241500, seasonv2= NA)
+new_row2 = c(commonid = 282974, seasonv2= NA)
+df_bind = rbind(season_df,new_row1, new_row2)
+
+#sorting the df by ID
+df_bind[order(df_bind$commonid, decreasing=FALSE),, drop=FALSE]
+
+df_combine = cbind(data_var_select_FS,df_bind$seasonv2)
+#renaming the season column 
+df_combine <- df_combine %>% 
+  rename(season = `df_bind$seasonv2`)
+
+#renaming the season values 
+df_combine$season[df_combine$season== 'Spring']<-0 
+df_combine$season[df_combine$season== 'Summer']<-1 
+df_combine$season[df_combine$season== 'Fall']<-2 
+df_combine$season[df_combine$season== 'Winter']<-3 
+
+data_var_select_FS <- df_combine
+
+#years of education variable 
+educ_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/education/education.csv')
+df <- educ_df %>% select(ID, EDUC)
+
+#selecting rows to only get IDs from the FS dataset
+list_ID_FS = as.list(data_var_select_FS$WHI_COMMON_ID)
+df <- df[df$ID %in% list_ID_FS,]
+#sorting by ID 
+df <- df[order(df$ID, decreasing=FALSE),, drop=FALSE]
+#changing values 
+unique(df$EDUC)
+df$EDUC[df$EDUC == 5] <- 0 #High school 
+df$EDUC[df$EDUC >= 6 & df$EDUC <= 7] <- 1 # education after high school 
+df$EDUC[df$EDUC >= 8 & df$EDUC <= 11] <- 2 #College degree or higher 
+unique(df$EDUC)
+
+#binding the main df and the new df
+df_bind = cbind(data_var_select_FS,df$EDUC)
+#renaming the educ column 
+df_bind <- df_bind %>% 
+  rename(education = `df$EDUC`)
+
+data_var_select_FS <- df_bind
+
+#Physical activity variable 
+PA_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS-FS(AS272)_form_35_common_ID.csv')
+
+#removing ID 171605
+PA_df <- PA_df[-60,]
+
+#selecting the physical activity column 
+df <- PA_df %>% select(COMMID, TEXPWK)
+
+#changing the variable values 
+unique(df$TEXPWK)
+df$TEXPWK[df$TEXPWK >= 0 & df$TEXPWK<= 5.5] <- 0 
+df$TEXPWK[df$TEXPWK >= 5.6 & df$TEXPWK <= 12.25] <- 1 
+df$TEXPWK[df$TEXPWK >= 12.3 & df$TEXPWK <= 24.0] <- 2 
+df$TEXPWK[df$TEXPWK > 24] <- 3 
+unique(df$TEXPWK)
+
+df_combine = cbind(data_var_select_FS,df$TEXPWK)
+#renaming the physical activity column 
+df_combine <- df_combine %>% 
+  rename(PA_wk = `df$TEXPWK`)
+
+data_var_select_FS <- df_combine
+
+#TEE variable 
+TEE_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS-FS TEE Energy.csv')
+data_var_select_FS %>% 
+  filter(!data_var_select_FS$WHI_COMMON_ID %in% TEE_df$ID)
+
+#adding the missing IDs to the df
+new_row1 = c(ID = 241500, TEE.Energy..kcal.d = NA)
+new_row2 = c(ID = 282974, TEE.Energy..kcal.d = NA)
+df_bind = rbind(TEE_df,new_row1, new_row2)
+
+#sorting the df by ID
+df_bind = df_bind[order(df_bind$ID, decreasing=FALSE),, drop=FALSE]
+
+#combining df_bind with the main df
+df_combine = cbind(data_var_select_FS,df_bind$TEE.Energy..kcal.d)
+#renaming the TEE column 
+df_combine <- df_combine %>% 
+  rename(TEE = `df_bind$TEE.Energy..kcal.d`)
+
+data_var_select_FS <- df_combine
+
+#urine nitrogen variable 
+Nitrogen_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/Total N- Herdt Lab-CommonID.csv')
+
+#give the missing IDs a NA value 
+data_var_select_FS %>% 
+  filter(!data_var_select_FS$WHI_COMMON_ID %in% Nitrogen_df$Common.ID)
+
+new_row1 = c(Common.ID = 187709, Total.Nitrogen..mg.mL. = NA)
+new_row2 = c(Common.ID = 227839, Total.Nitrogen..mg.mL. = NA)
+new_row3 = c(Common.ID = 241500, Total.Nitrogen..mg.mL. = NA)
+new_row4 = c(Common.ID = 279163, Total.Nitrogen..mg.mL. = NA)
+new_row5 = c(Common.ID = 282974, Total.Nitrogen..mg.mL. = NA)
+df_bind = rbind(Nitrogen_df,new_row1, new_row2, new_row3, new_row4, new_row5)
+
+#sorting by ID 
+df_bind = df_bind[order(df_bind$Common.ID, decreasing=FALSE),, drop=FALSE]
+
+#binding it to the main df
+df_combine = cbind(data_var_select_FS,df_bind$Total.Nitrogen..mg.mL.)
+
+#renaming the Nitrogen column 
+df_combine <- df_combine %>% 
+  rename(Nitrogen = `df_bind$Total.Nitrogen..mg.mL.`)
+
+data_var_select_FS <- df_combine
+#making a new name for the demographic variables 
+demographic_df <- data_var_select_FS
+
+#making a new dataset for the serum samples 
+serum_df_S1 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum samples/S1_lcms_aq_study1_log-transformed.csv')
+serum_df_S2 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum samples/S2_lcms_p_study1_log-transformed.csv')
+serum_df_S2 = subset(serum_df_S2, select = -c(ID_common)) #removing the ID from S2
+serum_df = cbind(serum_df_S1, serum_df_S2)
+serum_df <- serum_df[order(serum_df$ID_common, decreasing=FALSE),, drop=FALSE]
+
+#making dataset for the lipid samples 
+lipid_df_L1 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum lipid samples/L1_fa_aq_study1_log-transformed.csv')
+lipid_df_L2 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum lipid samples/L2_fa_p_study1_log-transformed.csv')
+lipid_df_L2 = subset(lipid_df_L2, select = -c(ID_common)) #removing the ID from L2
+lipid_df_L3 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum lipid samples/L3_lipid_aq_class_study1_log-transformed.csv')
+lipid_df_L3 = subset(lipid_df_L3, select = -c(ID_common)) 
+lipid_df_L4 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum lipid samples/L4_lipid_aq_study1_log-transformed.csv')
+lipid_df_L4 = subset(lipid_df_L4, select = -c(ID_common)) 
+lipid_df_L5 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum lipid samples/L5_lipid_p_class_study1_log-transformed.csv')
+lipid_df_L5 = subset(lipid_df_L5, select = -c(ID_common)) 
+lipid_df_L6 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/serum lipid samples/L6_lipid_p_study1_log-transformed.csv')
+lipid_df_L6 = subset(lipid_df_L6, select = -c(ID_common)) 
+
+lipid_df = cbind(lipid_df_L1, lipid_df_L2, lipid_df_L3, lipid_df_L4, lipid_df_L5, lipid_df_L6)
+lipid_df <- lipid_df[order(lipid_df$ID_Common, decreasing=FALSE),, drop=FALSE]
+
+#making the urine dataset 
+urine_df_U1 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/urine samples/24hr urine samples/U1_v2_gcms_24hr_study1_log-transformed.csv')
+urine_df_U2 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/metabolites/Study 1 (NPAAS-FS)/urine samples/24hr urine samples/U2_nmr_24hr_study1_log-transformed.csv')
+urine_df_U2 = subset(urine_df_U2, select = -c(ID_common)) 
+
+urine_df = cbind(urine_df_U1, urine_df_U2)
+urine_df <- urine_df[order(urine_df$ID_common, decreasing=FALSE),, drop=FALSE]
+
+#finding the IDs in the metabolite dfs
+list_ID_met = as.list(urine_df$ID_common)
+
+#getting rid of the two IDs that are not in the met dfs
+df <- data_var_select_FS
+df <- df[df$WHI_COMMON_ID %in% list_ID_met,]
+demographic_df <- df
+
+#outcome df
+df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS-FS(AS272)_NPFS_consumed_menu_avg_common_ID.csv')
+#sorting the df by ID
+df <- df[order(df$WHI_common_ID, decreasing=FALSE),, drop=FALSE]
+#selecting variables 
+df <- df %>% select(WHI_common_ID, fat, percent_fat)
+outcome_df <- df
+
+############ making the datasets ############
+#dataset 1 
+#metabolomic data only: adding ID, serum df, lipid df, urine df and outcome df
+
+lipid_df = subset(lipid_df, select = -c(ID_Common)) 
+urine_df = subset(urine_df, select = -c(ID_common)) 
+outcome_df = subset(outcome_df, select = -c(WHI_common_ID)) 
+dataset_1 = cbind(serum_df, lipid_df, urine_df, outcome_df)
+
+#dataset 2
+#dataset 1 + participant characteristics 
+
+#getting rid of TEE and urine nitrogen from dem data
+diet_biom_df <- demographic_df %>% select(WHI_COMMON_ID,TEE, Nitrogen)
+
+demographic_df = subset(demographic_df, select = -c(WHI_COMMON_ID, TEE, Nitrogen)) 
+dataset_2 <- cbind(dataset_1, demographic_df)
+
+#dataset 3
+#dataset 2 + diet-related biomarkers 
+diet_biom_df = subset(diet_biom_df, select = -c(WHI_COMMON_ID)) 
+dataset_3 <- cbind(dataset_2, diet_biom_df)
+
+#exporting the datasets 
+setwd("~/Documents/THESIS/dataset/datasets for analysis ")
+
+write.csv(dataset_1, 'dataset_1.csv')
+write.csv(dataset_2, 'dataset_2.csv')
+write.csv(dataset_3, 'dataset_3.csv')
+
+
