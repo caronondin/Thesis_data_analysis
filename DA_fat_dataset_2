@@ -1,0 +1,347 @@
+####### this is the data analysis for "fat" using dataset 2###########
+
+library(tree)
+library(randomForest)
+library(ggplot2)
+library(gbm)
+library(BART)
+
+#opening the datasets 
+dataset_1 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_1.csv')
+dataset_2 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_2.csv')
+dataset_3 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_3.csv')
+
+####################predicting total fat########################## 
+
+#RESULTS (MSE): 
+
+#simple tree: 987.058
+#pruned:745.6693 (depth = 2)
+#bagged tree:  
+#rf:
+#boosted tree: 
+#BART: 
+
+#removing the percent fat column 
+dataset <- subset(dataset_2, select = -percent_fat)
+
+#1.a.making a regression tree
+set.seed(1)
+train <- sample(1:nrow(dataset), nrow(dataset) *0.8)
+simple.tree <- tree(fat ~ ., dataset, subset = train)
+summary(simple.tree) #you'll find the important variables here 
+plot(simple.tree)
+text(simple.tree, pretty = 0)
+
+#testing the tree 
+yhat <- predict(simple.tree, newdata = dataset[-train, ])
+test <- dataset[-train, "fat"]
+plot(yhat, test)
+abline(0, 1)
+mean((yhat - test)^2)
+#MSE = 987.058 (very bad)
+
+cv <- cv.tree(simple.tree)
+plot(cv$size, cv$dev, type = "b")
+
+#it seems like anything under 4 layers to the tree has the lowest missclassification error 
+
+#1.b.pruned tree 
+#can't do predictions with a depth of 1
+
+# Define the range of depth values to test
+depth_values <- c(2, 3, 4, 5, 6)
+
+# Create an empty list to store the pruned tree models
+pruned_models <- list()
+mse_results <- numeric(length = length(depth_values))
+
+# Iterate over each depth value and train the pruned tree model
+set.seed(1)
+for (i in seq_along(depth_values)) {
+  depth <- depth_values[i]
+  
+  # Train the pruned tree model
+  prune.tree <- prune.tree(simple.tree, best = depth)
+  pruned_models[[as.character(depth)]] <- pruned_models
+  
+  # Make predictions on the test set
+  yhat <- predict(prune.tree, newdata = dataset[-train, ])
+  
+  # Calculate mean squared error
+  mse <- mean((yhat - test)^2)
+  mse_results[i] <- mse
+}
+
+# Create a data frame for the ntree values and mean squared error
+results <- data.frame(depth = depth_values, mse = mse_results)
+
+# Create a line plot of the mean squared error
+ggplot(results, aes(x = depth, y = mse)) +
+  geom_line() +
+  geom_point() +
+  xlab("Tree Depth") +
+  ylab("Mean Squared Error")
+
+# depth of 2 is the best. MSE = 745.6693
+
+#this is so you can take a look at the final model 
+#you can make the model with depth of 2 here 
+#plot(prune.ds_1.v2)
+#text(prune.ds_1.v2, pretty = 0)
+
+#1.c. random forest 
+
+#bagged tree 
+set.seed(1)
+bag.tree <- randomForest(fat ~., data = dataset, subset = train, mtry = 2207,
+                        importance = TRUE) #mtry = p for bagged tree 
+yhat.bag <- predict(bag.tree, newdata = dataset[-train, ])
+plot(yhat.bag, test)
+abline(0, 1)
+mean((yhat.bag - test)^2) #MSE = 361.156
+
+#trying bagged tree with different tree depth 
+# Define the range of ntree values to test
+ntree_values <- c(500, 1000, 2000, 3000, 4000, 5000)
+
+# Create an empty list to store the random forest models
+rf_models <- list()
+mse_results <- numeric(length = length(ntree_values))
+# Iterate over each ntree value and train the random forest model
+set.seed(1)
+for (i in seq_along(ntree_values)) {
+  ntree <- ntree_values[i]
+  
+  # Train the random forest model
+  rf_model <- randomForest(fat ~ ., data = dataset_1_fat, subset = train_ds1, mtry = 2198, ntree = ntree)
+  rf_models[[as.character(ntree)]] <- rf_model
+  
+  # Make predictions on the test set
+  yhat.rf <- predict(rf_model, newdata = dataset_1_fat[-train_ds1, ])
+  
+  # Calculate mean squared error
+  mse <- mean((yhat.rf - ds1.test)^2)
+  mse_results[i] <- mse
+}
+
+# Create a data frame for the ntree values and mean squared error
+results <- data.frame(ntree = ntree_values, mse = mse_results)
+
+# Create a line plot of the mean squared error
+ggplot(results, aes(x = ntree, y = mse)) +
+  geom_line() +
+  geom_point() +
+  xlab("Number of Trees") +
+  ylab("Mean Squared Error")
+
+#the best one was tree = 1000, MSE = 358.4905
+
+#random forest 
+set.seed(1)
+rf.ds1 <- randomForest(fat ~ ., data = dataset_1_fat,
+                       subset = train_ds1, mtry = 733, importance = TRUE) #mtry = p/3 in rf, default ntree = 500
+yhat.rf <- predict(rf.ds1, newdata = dataset_1_fat[-train_ds1, ])
+mean((yhat.rf - ds1.test)^2) #MSE = 371.0494
+
+# Define the range of ntree values to test
+ntree_values <- c(500, 1000, 2000, 3000, 4000, 5000)
+
+# Create an empty list to store the random forest models
+rf_models <- list()
+mse_results <- numeric(length = length(ntree_values))
+
+# Iterate over each ntree value and train the random forest model
+set.seed(1)
+for (i in seq_along(ntree_values)) {
+  ntree <- ntree_values[i]
+  
+  # Train the random forest model
+  rf_model <- randomForest(fat ~ ., data = dataset_1_fat, subset = train_ds1, mtry = 733, ntree = ntree)
+  rf_models[[as.character(ntree)]] <- rf_model
+  
+  # Make predictions on the test set
+  yhat.rf <- predict(rf_model, newdata = dataset_1_fat[-train_ds1, ])
+  
+  # Calculate mean squared error
+  mse <- mean((yhat.rf - ds1.test)^2)
+  mse_results[i] <- mse
+}
+
+# Create a data frame for the ntree values and mean squared error
+results <- data.frame(ntree = ntree_values, mse = mse_results)
+
+# Create a line plot of the mean squared error
+ggplot(results, aes(x = ntree, y = mse)) +
+  geom_line() +
+  geom_point() +
+  xlab("Number of Trees") +
+  ylab("Mean Squared Error")
+
+#best is rf with 3000 trees, MSE = 355.3825
+
+set.seed(1)
+rf.ds1.3000 <- randomForest(fat ~ ., data = dataset_1_fat,
+                            subset = train_ds1, mtry = 733, ntree = 3000, importance = TRUE)
+yhat.rf <- predict(rf.ds1.3000, newdata = dataset_1_fat[-train_ds1, ])
+mean((yhat.rf - ds1.test)^2) #MSE = 360.9856
+
+#plotting the important variables 
+importance(rf.ds1)
+varImpPlot(rf.ds1)
+
+#1.d boosted tree 
+
+set.seed(1)
+boost.ds1 <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ],
+                 distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
+summary(boost.ds1)
+yhat.boost <- predict(boost.ds1,
+                      newdata = dataset_1_fat[-train_ds1, ], n.trees = 5000)
+mean((yhat.boost - ds1.test)^2) #MSE = 414.5705
+
+#changing the shrinkage value 
+boost.ds1 <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ], distribution = "gaussian", n.trees = 5000, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+yhat.boost <- predict(boost.ds1,
+                      newdata = dataset_1_fat[-train_ds1, ], n.trees = 5000)
+mean((yhat.boost - ds1.test)^2) #MSE = 377.6255
+
+#testing n.trees 
+#we can see that shrinkage = 0.2 helps 
+#n.trees = 100
+boost.ds1 <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ], distribution = "gaussian", n.trees = 100, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+yhat.boost <- predict(boost.ds1,
+                      newdata = dataset_1_fat[-train_ds1, ], n.trees = 100)
+mean((yhat.boost - ds1.test)^2) #MSE = 455.7551
+
+#trying 500
+boost.ds1 <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ], distribution = "gaussian", n.trees = 500, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+yhat.boost <- predict(boost.ds1,
+                      newdata = dataset_1_fat[-train_ds1, ], n.trees = 500)
+mean((yhat.boost - ds1.test)^2) #MSE = 323.7841
+
+#making a loop
+# Define the range of ntree values to test
+n.trees_values <- c(400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000)
+
+# Create an empty list to store the random forest models
+boost_models <- list()
+mse_results <- numeric(length = length(n.trees_values))
+
+# Iterate over each ntree value and train the random forest model
+set.seed(1)
+for (i in seq_along(n.trees_values)) {
+  n.trees <- n.trees_values[i]
+  
+  # Train the random forest model
+  boost_model <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ], distribution = "gaussian", n.trees = n.trees, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+  boost_models[[as.character(n.trees)]] <- boost_model
+  
+  # Make predictions on the test set
+  yhat.boost <- predict(boost_model, newdata = dataset_1_fat[-train_ds1, ])
+  
+  # Calculate mean squared error
+  mse <- mean((yhat.boost - ds1.test)^2)
+  mse_results[i] <- mse
+}
+
+# Create a data frame for the ntree values and mean squared error
+results <- data.frame(n.trees = n.trees_values, mse = mse_results)
+
+# Create a line plot of the mean squared error
+ggplot(results, aes(x = n.trees, y = mse)) +
+  geom_line() +
+  geom_point() +
+  xlab("Number of Trees") +
+  ylab("Mean Squared Error")
+
+#best n.trees = 500! MSE = 273.4996
+
+#changing the interaction depth 
+# Define the range of ntree values to test
+int.depth_values <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30)
+
+# Create an empty list to store the random forest models
+boost_models <- list()
+mse_results <- numeric(length = length(int.depth_values))
+
+# Iterate over each ntree value and train the random forest model
+set.seed(1)
+for (i in seq_along(int.depth_values)) {
+  int.depth <- int.depth_values[i]
+  
+  # Train the random forest model
+  boost_model <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ], distribution = "gaussian", n.trees = 500, interaction.depth = int.depth, shrinkage = 0.2, verbose = F)
+  boost_models[[as.character(int.depth)]] <- boost_model
+  
+  # Make predictions on the test set
+  yhat.boost <- predict(boost_model, newdata = dataset_1_fat[-train_ds1, ])
+  
+  # Calculate mean squared error
+  mse <- mean((yhat.boost - ds1.test)^2)
+  mse_results[i] <- mse
+}
+
+# Create a data frame for the ntree values and mean squared error
+results <- data.frame(int.depth = int.depth_values, mse = mse_results)
+
+# Create a line plot of the mean squared error
+ggplot(results, aes(x = int.depth, y = mse)) +
+  geom_line() +
+  geom_point() +
+  xlab("Interaction Depth") +
+  ylab("Mean Squared Error")
+
+#the lowest one is 2: MSE = 314.6470
+
+#changing the shrinkage 
+# Define the range of ntree values to test
+shrink_values <- c(0.001, 0.01, 0.1, 0.2, 0.3, 1)
+
+# Create an empty list to store the boosted models
+boost_models <- list()
+mse_results <- numeric(length = length(shrink_values))
+set.seed(1)
+for (i in seq_along(shrink_values)) {
+  shrink <- shrink_values[i]
+  
+  # Train the random forest model
+  boost_model <- gbm(fat ~ ., data = dataset_1_fat[train_ds1, ], distribution = "gaussian", n.trees = 500, interaction.depth = 2, shrinkage = shrink, verbose = F)
+  boost_models[[as.character(shrink)]] <- boost_model
+  
+  # Make predictions on the test set
+  yhat.boost <- predict(boost_model, newdata = dataset_1_fat[-train_ds1, ])
+  
+  # Calculate mean squared error
+  mse <- mean((yhat.boost - ds1.test)^2)
+  mse_results[i] <- mse
+}
+
+# Create a data frame for the ntree values and mean squared error
+results <- data.frame(shrink = shrink_values, mse = mse_results)
+
+# Create a line plot of the mean squared error
+ggplot(results, aes(x = int.depth, y = mse)) +
+  geom_line() +
+  geom_point() +
+  xlab("Interaction Depth") +
+  ylab("Mean Squared Error")
+# best shrink = 0.2, MSE = 312.3716
+
+#Bayesian Additive regression tree 
+x <- dataset_1_fat[, 1:2198]
+y <- dataset_1_fat[, "fat"]
+xtrain <- x[train_ds1, ]
+ytrain <- y[train_ds1]
+xtest <- x[-train_ds1, ]
+ytest <- y[-train_ds1]
+set.seed(1)
+bartfit <- gbart(xtrain, ytrain, x.test = xtest)
+yhat.bart <- bartfit$yhat.test.mean
+mean((ytest - yhat.bart)^2) #MSE = 370.2633
+ord <- order(bartfit$varcount.mean, decreasing = T)
+bartfit$varcount.mean[ord]
+
+
+
+
