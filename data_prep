@@ -4,6 +4,9 @@ library(tidyverse)
 library(dplyr)
 library(haven)
 library(readr)
+library(faraway)
+library(randomForest)
+library(tibble)
 
 #setting working directory to the NPAAS dataset
 NPAAS_OS_dir  <- '/Users/cnondin/Documents/THESIS/dataset/NPAAS_OS_dataset/'
@@ -91,7 +94,7 @@ Age_hght_wght_df <- read.csv('NPAAS-FS(AS272)_form 275_visit_1_common_ID_Age_Bod
 data_var_FS <- Age_hght_wght_df
 
 #creating a dataframe with just the IDs and the age
-data_var_select_FS <- data_var_FS %>% select(WHI_COMMON_ID, AGE_AT_VISIT_1, BMI_V1, BMI_V2)
+data_var_select_FS <- data_var_FS %>% select(WHI_COMMON_ID, AGE_AT_VISIT_1, BMI_V1)
 #renaming the age variable 
 data_var_select_FS <- data_var_select_FS %>% 
   rename(agev1_FS = AGE_AT_VISIT_1)
@@ -113,12 +116,6 @@ df$BMI_V1[df$BMI_V1 > 16 & df$BMI_V1 < 25] <- 0
 df$BMI_V1[df$BMI_V1 >= 25 & df$BMI_V1 < 30] <- 1
 df$BMI_V1[df$BMI_V1 >=30 & df$BMI_V1 <= 100] <- 2
 unique(df$BMI_V1)
-
-#BMI_V2
-df$BMI_V2[df$BMI_V2 > 16 & df$BMI_V2 < 25] <- 0 
-df$BMI_V2[df$BMI_V2 >= 25 & df$BMI_V2 < 30] <- 1
-df$BMI_V2[df$BMI_V2 >=30 & df$BMI_V2 <= 100] <- 2
-unique(df$BMI_V2)
 
 data_var_select_FS <- df
 
@@ -266,24 +263,24 @@ df_combine <- df_combine %>%
 
 data_var_select_FS <- df_combine
 
-#TEE variable 
-TEE_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS-FS TEE Energy.csv')
+#Ein variable 
+Ein_df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS-FS TEE Energy.csv')
 data_var_select_FS %>% 
-  filter(!data_var_select_FS$WHI_COMMON_ID %in% TEE_df$ID)
+  filter(!data_var_select_FS$WHI_COMMON_ID %in% Ein_df$ID)
 
 #adding the missing IDs to the df
-new_row1 = c(ID = 241500, TEE.Energy..kcal.d = NA)
-new_row2 = c(ID = 282974, TEE.Energy..kcal.d = NA)
-df_bind = rbind(TEE_df,new_row1, new_row2)
+new_row1 = c(ID = 241500, Ein = NA)
+new_row2 = c(ID = 282974, Ein = NA)
+df_bind = rbind(Ein_df,new_row1, new_row2)
 
 #sorting the df by ID
 df_bind = df_bind[order(df_bind$ID, decreasing=FALSE),, drop=FALSE]
 
 #combining df_bind with the main df
-df_combine = cbind(data_var_select_FS,df_bind$TEE.Energy..kcal.d)
-#renaming the TEE column 
+df_combine = cbind(data_var_select_FS,df_bind$Ein)
+#renaming the Ein column 
 df_combine <- df_combine %>% 
-  rename(TEE = `df_bind$TEE.Energy..kcal.d`)
+  rename(Ein = `df_bind$Ein`)
 
 data_var_select_FS <- df_combine
 
@@ -353,6 +350,15 @@ list_ID_met = as.list(urine_df$ID_common)
 df <- data_var_select_FS
 df <- df[df$WHI_COMMON_ID %in% list_ID_met,]
 demographic_df <- df
+#changing some of the variables to factors 
+demographic_df <- mutate(demographic_df, agev1_FS = as.factor(agev1_FS))
+demographic_df <- mutate(demographic_df, BMI_V1 = as.factor(BMI_V1))
+demographic_df <- mutate(demographic_df, anysupp = as.factor(anysupp))
+demographic_df <- mutate(demographic_df, ethnicity = as.factor(ethnicity))
+demographic_df <- mutate(demographic_df, cignow = as.factor(cignow))
+demographic_df <- mutate(demographic_df, season = as.factor(season))
+demographic_df <- mutate(demographic_df, education = as.factor(education))
+demographic_df <- mutate(demographic_df, PA_wk = as.factor(PA_wk))
 
 #outcome df
 df <- read.csv('/Users/cnondin/Documents/THESIS/dataset/PKG - Ms4932p NPAAS datasets/Ms4932p ASPERA Sent/NPAAS-FS(AS272)_NPFS_consumed_menu_avg_common_ID.csv')
@@ -374,16 +380,44 @@ dataset_1 = cbind(serum_df, lipid_df, urine_df, outcome_df)
 #dataset 2
 #dataset 1 + participant characteristics 
 
-#getting rid of TEE and urine nitrogen from dem data
-diet_biom_df <- demographic_df %>% select(WHI_COMMON_ID,TEE, Nitrogen)
+#getting rid of Ein and urine nitrogen from dem data
+diet_biom_df <- demographic_df %>% select(WHI_COMMON_ID, Ein, Nitrogen)
 
-demographic_df = subset(demographic_df, select = -c(WHI_COMMON_ID, TEE, Nitrogen)) 
+demographic_df = subset(demographic_df, select = -c(WHI_COMMON_ID, Ein, Nitrogen)) 
 dataset_2 <- cbind(dataset_1, demographic_df)
+
+#changing the NA values 
+impute_data <- dataset_2
+dataset2_imputed <- tibble::as_tibble(
+  randomForest::rfImpute(fat ~ ., ntree = 200, iter = 5, data = impute_data)
+) %>% select(anysupp, cignow, season, education, 
+             ethnicity, fat)
+
+#removing the imputed variables from dataset 2
+dataset_2 = subset(dataset_2, select = -c(anysupp, cignow, season, education, ethnicity)) 
+#removing fat from the imputed dataset 
+dataset2_imputed = subset(dataset2_imputed, select = -c(fat)) 
+#combining the two
+dataset_2 = cbind(dataset_2, dataset2_imputed)
 
 #dataset 3
 #dataset 2 + diet-related biomarkers 
+
 diet_biom_df = subset(diet_biom_df, select = -c(WHI_COMMON_ID)) 
 dataset_3 <- cbind(dataset_2, diet_biom_df)
+
+#changing the NA values 
+impute_data <- dataset_3
+dataset3_imputed <- tibble::as_tibble(
+  randomForest::rfImpute(fat ~ ., ntree = 200, iter = 5, data = impute_data)
+) %>% select(Ein, Nitrogen, fat)
+
+#removing the imputed variables from dataset 2
+dataset_3 = subset(dataset_3, select = -c(Ein, Nitrogen)) 
+#removing fat from the imputed dataset 
+dataset3_imputed = subset(dataset3_imputed, select = -c(fat)) 
+#combining the two
+dataset_3 = cbind(dataset_3, dataset3_imputed)
 
 #exporting the datasets 
 setwd("~/Documents/THESIS/dataset/datasets for analysis ")
