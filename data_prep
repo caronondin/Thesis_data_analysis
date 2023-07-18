@@ -419,11 +419,20 @@ dataset3_imputed = subset(dataset3_imputed, select = -c(fat))
 #combining the two
 dataset_3 = cbind(dataset_3, dataset3_imputed)
 
+#putting the outcomes as the last columns in dataset 2 and 3
+outcome <- dataset_2 %>% select(fat, percent_fat)
+dataset_2 = subset(dataset_2, select = -c(fat, percent_fat)) 
+dataset_2 <- cbind(dataset_2, outcome)
+
+outcome <- dataset_3 %>% select(fat, percent_fat)
+dataset_3 = subset(dataset_3, select = -c(fat, percent_fat)) 
+dataset_3 <- cbind(dataset_3, outcome)
 #exporting the datasets 
 setwd("~/Documents/THESIS/dataset/datasets for analysis ")
 
 write.csv(dataset_1, 'dataset_1.csv')
 write.csv(dataset_2, 'dataset_2.csv')
 write.csv(dataset_3, 'dataset_3.csv')
+
 
 
