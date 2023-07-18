@@ -14,12 +14,12 @@ dataset_3 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for anal
 
 #RESULTS (MSE): 
 
-#simple tree: 47.62924
-#pruned:28.65561 (depth = 2)
-#bagged tree: 20.48484 (tree = 300)
-#rf: 20.59830 (tree = 300)
-#boosted tree: 19.63405 (tree = 100, int depth = 4, shrink = 0.2)
-#BART: 8.475768
+#simple tree: 55.53659
+#pruned: 23.72668 (depth = 2)
+#bagged tree: 20.79605 (tree = 100)
+#rf: 19.89402 (tree = 300)
+#boosted tree: 19.71255 (tree= 900, int depth = 10, shrink = 0.2)
+#BART: 21.14133
 
 #removing the percent fat column 
 dataset <- subset(dataset_3, select = -fat)
@@ -38,7 +38,7 @@ test <- dataset[-train, "percent_fat"]
 plot(yhat, test)
 abline(0, 1)
 mean((yhat - test)^2)
-#MSE = 47.62924
+#MSE = 55.53659
 
 cv <- cv.tree(simple.tree)
 plot(cv$size, cv$dev, type = "b")
@@ -83,7 +83,7 @@ ggplot(results, aes(x = depth, y = mse)) +
   xlab("Tree Depth") +
   ylab("Mean Squared Error")
 
-# depth of 2 is the best. MSE = 28.65561
+# depth of 2 is the best. MSE = 23.72668
 
 #this is so you can take a look at the final model 
 #you can make the model with depth of 2 here 
@@ -91,53 +91,15 @@ ggplot(results, aes(x = depth, y = mse)) +
 #text(prune.ds_1.v2, pretty = 0)
 
 #1.c. random forest 
-
-#making a new dataset with imputed NAs:
-#I'm using random values to replace the NAs 
-imp_data <- dataset
-
-#changing anysupp variable 
-observed_values <- imp_data$anysupp[!is.na(imp_data$anysupp)]
-imp_data$anysupp[is.na(imp_data$anysupp)] <- sample(observed_values, size = sum(is.na(imp_data$anysupp)), replace = TRUE)
-
-#changing cignow variable 
-observed_values <- imp_data$cignow[!is.na(imp_data$cignow)]
-imp_data$cignow[is.na(imp_data$cignow)] <- sample(observed_values, size = sum(is.na(imp_data$cignow)), replace = TRUE)
-
-#changing season variable 
-observed_values <- imp_data$season[!is.na(imp_data$season)]
-imp_data$season[is.na(imp_data$season)] <- sample(observed_values, size = sum(is.na(imp_data$season)), replace = TRUE)
-
-#changing education variable 
-observed_values <- imp_data$education[!is.na(imp_data$education)]
-imp_data$education[is.na(imp_data$education)] <- sample(observed_values, size = sum(is.na(imp_data$education)), replace = TRUE)
-
-#changing ethnicity variable 
-observed_values <- imp_data$ethnicity[!is.na(imp_data$ethnicity)]
-imp_data$ethnicity[is.na(imp_data$ethnicity)] <- sample(observed_values, size = sum(is.na(imp_data$ethnicity)), replace = TRUE)
-
-#changing the TEE variable 
-observed_values <- imp_data$TEE[!is.na(imp_data$TEE)]
-imp_data$TEE[is.na(imp_data$TEE)] <- sample(observed_values, size = sum(is.na(imp_data$TEE)), replace = TRUE)
-
-#changing the Nitrogen variable 
-observed_values <- imp_data$Nitrogen[!is.na(imp_data$Nitrogen)]
-imp_data$Nitrogen[is.na(imp_data$Nitrogen)] <- sample(observed_values, size = sum(is.na(imp_data$Nitrogen)), replace = TRUE)
-
-#creating a new training set 
-set.seed(1)
-imp_train <- sample(1:nrow(imp_data), nrow(imp_data) *0.8)
-imp_test <- dataset[-imp_train, "percent_fat"]
-
 #bagged tree 
 set.seed(1)
-bag.tree <- randomForest(percent_fat ~., data = imp_data, subset = imp_train, mtry = 2209,
+bag.tree <- randomForest(percent_fat ~., data = dataset, subset = train, mtry = 2208,
                          importance = TRUE) #mtry = p for bagged tree 
-yhat.bag <- predict(bag.tree, newdata = imp_data[-imp_train, ])
+yhat.bag <- predict(bag.tree, newdata = dataset[-train, ])
 
-plot(yhat.bag, imp_test)
+plot(yhat.bag, test)
 abline(0, 1)
-mean((yhat.bag - imp_test)^2) #MSE = 21.42791
+mean((yhat.bag - test)^2) #MSE = 22.50628
 
 #trying bagged tree with different tree depth 
 # Define the range of ntree values to test
@@ -152,14 +114,14 @@ for (i in seq_along(ntree_values)) {
   ntree <- ntree_values[i]
   
   # Train the random forest model
-  rf_model <- randomForest(percent_fat ~ ., data = imp_data, subset = imp_train, mtry = 2207, ntree = ntree)
+  rf_model <- randomForest(percent_fat ~ ., data = dataset, subset = train, mtry = 2208, ntree = ntree)
   rf_models[[as.character(ntree)]] <- rf_model
   
   # Make predictions on the test set
-  yhat.rf <- predict(rf_model, newdata = imp_data[-imp_train, ])
+  yhat.rf <- predict(rf_model, newdata = dataset[-train, ])
   
   # Calculate mean squared error
-  mse <- mean((yhat.rf - imp_test)^2)
+  mse <- mean((yhat.rf - test)^2)
   mse_results[i] <- mse
 }
 
@@ -173,14 +135,14 @@ ggplot(results, aes(x = ntree, y = mse)) +
   xlab("Number of Trees") +
   ylab("Mean Squared Error")
 
-#the best one was tree = 300, MSE = 20.48484
+#the best one was tree = 100, MSE = 20.79605
 
 #random forest 
 set.seed(1)
-rf <- randomForest(percent_fat ~ ., data = imp_data,
-                   subset = imp_train, mtry = 736, importance = TRUE) #mtry = p/3 in rf, default ntree = 500
-yhat.rf <- predict(rf, newdata = imp_data[-imp_train, ])
-mean((yhat.rf - test)^2) #MSE = 21.60752
+rf <- randomForest(percent_fat ~ ., data = dataset,
+                   subset = train, mtry = 736, importance = TRUE) #mtry = p/3 in rf, default ntree = 500
+yhat.rf <- predict(rf, newdata = dataset[-train, ])
+mean((yhat.rf - test)^2) #MSE = 21.57881
 
 # Define the range of ntree values to test
 ntree_values <- c(100, 200, 300, 500, 1000, 2000, 3000, 4000, 5000)
@@ -195,14 +157,14 @@ for (i in seq_along(ntree_values)) {
   ntree <- ntree_values[i]
   
   # Train the random forest model
-  rf_model <- randomForest(percent_fat ~ ., data = imp_data, subset = imp_train, mtry = 736, ntree = ntree)
+  rf_model <- randomForest(percent_fat ~ ., data = dataset, subset = train, mtry = 736, ntree = ntree)
   rf_models[[as.character(ntree)]] <- rf_model
   
   # Make predictions on the test set
-  yhat.rf <- predict(rf_model, newdata = imp_data[-imp_train, ])
+  yhat.rf <- predict(rf_model, newdata = dataset[-train, ])
   
   # Calculate mean squared error
-  mse <- mean((yhat.rf - imp_test)^2)
+  mse <- mean((yhat.rf - test)^2)
   mse_results[i] <- mse
 }
 
@@ -216,13 +178,13 @@ ggplot(results, aes(x = ntree, y = mse)) +
   xlab("Number of Trees") +
   ylab("Mean Squared Error")
 
-#best is rf with 300 trees, MSE = 20.59830
+#best is rf with 300 trees, MSE = 19.89402
 
 set.seed(1)
-rf.100 <- randomForest(percent_fat ~ ., data = imp_data,
-                       subset = imp_train, mtry = 736, ntree = 100, importance = TRUE)
-yhat.rf <- predict(rf.100, newdata = imp_data[-imp_train, ])
-mean((yhat.rf - imp_test)^2) #MSE = 21.57843
+rf.100 <- randomForest(percent_fat ~ ., data = dataset,
+                       subset = train, mtry = 736, ntree = 100, importance = TRUE)
+yhat.rf <- predict(rf.100, newdata = dataset[-train, ])
+mean((yhat.rf - test)^2) #MSE = 21.57843
 
 #plotting the important variables 
 importance(rf.100)
@@ -231,32 +193,32 @@ varImpPlot(rf.100)
 #1.d boosted tree 
 
 set.seed(1)
-boost.tree <- gbm(percent_fat ~ ., data = imp_data[imp_train, ],
+boost.tree <- gbm(percent_fat ~ ., data = dataset[train, ],
                   distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
 summary(boost.tree)
 yhat.boost <- predict(boost.tree,
-                      newdata = imp_data[-imp_train, ], n.trees = 5000)
-mean((yhat.boost - imp_test)^2) #MSE = 24.23728
+                      newdata = dataset[-train, ], n.trees = 5000)
+mean((yhat.boost - test)^2) #MSE = 23.94835
 
 #changing the shrinkage value 
-boost.tree <- gbm(percent_fat ~ ., data = imp_data[imp_train, ], distribution = "gaussian", n.trees = 5000, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+boost.tree <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 5000, interaction.depth = 4, shrinkage = 0.2, verbose = F)
 yhat.boost <- predict(boost.tree,
-                      newdata = imp_data[-imp_train, ], n.trees = 5000)
-mean((yhat.boost - imp_test)^2) #MSE = 20.64433
+                      newdata = dataset[-train, ], n.trees = 5000)
+mean((yhat.boost - test)^2) #MSE = 21.03657
 
 #testing n.trees 
 #we can see that shrinkage = 0.2 helps 
 #n.trees = 100
-boost.tree <- gbm(percent_fat ~ ., data = imp_data[imp_train, ], distribution = "gaussian", n.trees = 100, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+boost.tree <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 100, interaction.depth = 4, shrinkage = 0.2, verbose = F)
 yhat.boost <- predict(boost.tree,
-                      newdata = imp_data[-imp_train, ], n.trees = 100)
-mean((yhat.boost - imp_test)^2) #MSE = 19.63405
+                      newdata = dataset[-train, ], n.trees = 100)
+mean((yhat.boost - test)^2) #MSE = 19.63405
 
 #trying 500
-boost.tree <- gbm(percent_fat ~ ., data = imp_data[imp_train, ], distribution = "gaussian", n.trees = 500, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+boost.tree <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 500, interaction.depth = 4, shrinkage = 0.2, verbose = F)
 yhat.boost <- predict(boost.tree,
-                      newdata = imp_data[-imp_train, ], n.trees = 500)
-mean((yhat.boost - imp_test)^2) #MSE = 30.8219
+                      newdata = dataset[-train, ], n.trees = 500)
+mean((yhat.boost - test)^2) #MSE = 30.8219
 
 #making a loop
 # Define the range of ntree values to test
@@ -272,14 +234,14 @@ for (i in seq_along(n.trees_values)) {
   n.trees <- n.trees_values[i]
   
   # Train the random forest model
-  boost_model <- gbm(percent_fat ~ ., data = imp_data[imp_train, ], distribution = "gaussian", n.trees = n.trees, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+  boost_model <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = n.trees, interaction.depth = 4, shrinkage = 0.2, verbose = F)
   boost_models[[as.character(n.trees)]] <- boost_model
   
   # Make predictions on the test set
-  yhat.boost <- predict(boost_model, newdata = imp_data[-imp_train, ])
+  yhat.boost <- predict(boost_model, newdata = dataset[-train, ], n.trees = n.trees)
   
   # Calculate mean squared error
-  mse <- mean((yhat.boost - imp_test)^2)
+  mse <- mean((yhat.boost - test)^2)
   mse_results[i] <- mse
 }
 
@@ -293,7 +255,7 @@ ggplot(results, aes(x = n.trees, y = mse)) +
   xlab("Number of Trees") +
   ylab("Mean Squared Error")
 
-#best n.trees = 900 MSE = 19.93111
+#best n.trees = 900 MSE = 20.88386
 
 #changing the interaction depth 
 # Define the range of ntree values to test
@@ -309,14 +271,14 @@ for (i in seq_along(int.depth_values)) {
   int.depth <- int.depth_values[i]
   
   # Train the random forest model
-  boost_model <- gbm(percent_fat ~ ., data = imp_data[imp_train, ], distribution = "gaussian", n.trees = 900, interaction.depth = int.depth, shrinkage = 0.2, verbose = F)
+  boost_model <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 900, interaction.depth = int.depth, shrinkage = 0.2, verbose = F)
   boost_models[[as.character(int.depth)]] <- boost_model
   
   # Make predictions on the test set
-  yhat.boost <- predict(boost_model, newdata = imp_data[-imp_train, ])
+  yhat.boost <- predict(boost_model, newdata = dataset[-train, ], n.tree = 900)
   
   # Calculate mean squared error
-  mse <- mean((yhat.boost - imp_test)^2)
+  mse <- mean((yhat.boost - test)^2)
   mse_results[i] <- mse
 }
 
@@ -330,7 +292,7 @@ ggplot(results, aes(x = int.depth, y = mse)) +
   xlab("Interaction Depth") +
   ylab("Mean Squared Error")
 
-#the lowest one is 10: MSE = 19.67390
+#the lowest one is 10: MSE = 19.71255
 
 #changing the shrinkage 
 # Define the range of ntree values to test
@@ -344,14 +306,14 @@ for (i in seq_along(shrink_values)) {
   shrink <- shrink_values[i]
   
   # Train the random forest model
-  boost_model <- gbm(percent_fat ~ ., data = imp_data[imp_train, ], distribution = "gaussian", n.trees = 900, interaction.depth = 10, shrinkage = shrink, verbose = F)
+  boost_model <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 900, interaction.depth = 10, shrinkage = shrink, verbose = F)
   boost_models[[as.character(shrink)]] <- boost_model
   
   # Make predictions on the test set
-  yhat.boost <- predict(boost_model, newdata = imp_data[-imp_train, ])
+  yhat.boost <- predict(boost_model, newdata = dataset[-train, ], n.trees = 900)
   
   # Calculate mean squared error
-  mse <- mean((yhat.boost - imp_test)^2)
+  mse <- mean((yhat.boost - test)^2)
   mse_results[i] <- mse
 }
 
@@ -364,10 +326,10 @@ ggplot(results, aes(x = shrink, y = mse)) +
   geom_point() +
   xlab("Interaction Depth") +
   ylab("Mean Squared Error")
-# best shrink = 0.01, MSE = 21.78248
+# best shrink = 0.01, MSE = 21.06873
 
 #Bayesian Additive regression tree 
-x <- dataset[, 1:2209]
+x <- dataset[, 1:2208]
 y <- dataset[, "percent_fat"]
 xtrain <- x[train, ]
 ytrain <- y[train]
@@ -376,9 +338,10 @@ ytest <- y[-train]
 set.seed(1)
 bartfit <- gbart(xtrain, ytrain, x.test = xtest)
 yhat.bart <- bartfit$yhat.test.mean
-mean((ytest - yhat.bart)^2) #MSE = 8.475768
+mean((ytest - yhat.bart)^2) #MSE = 21.14133
 ord <- order(bartfit$varcount.mean, decreasing = T)
 bartfit$varcount.mean[ord]
+
 
 
 
