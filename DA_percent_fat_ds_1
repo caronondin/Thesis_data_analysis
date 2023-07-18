@@ -93,44 +93,6 @@ ggplot(results, aes(x = depth, y = mse)) +
 
 #1.c. random forest 
 
-#making a new dataset with imputed NAs:
-#I'm using random values to replace the NAs 
-#not necessary for dataset 1
-#imp_data <- dataset
-
-#changing anysupp variable 
-#observed_values <- imp_data$anysupp[!is.na(imp_data$anysupp)]
-#imp_data$anysupp[is.na(imp_data$anysupp)] <- sample(observed_values, size = sum(is.na(imp_data$anysupp)), replace = TRUE)
-
-#changing cignow variable 
-#observed_values <- imp_data$cignow[!is.na(imp_data$cignow)]
-#imp_data$cignow[is.na(imp_data$cignow)] <- sample(observed_values, size = sum(is.na(imp_data$cignow)), replace = TRUE)
-
-#changing season variable 
-#observed_values <- imp_data$season[!is.na(imp_data$season)]
-#imp_data$season[is.na(imp_data$season)] <- sample(observed_values, size = sum(is.na(imp_data$season)), replace = TRUE)
-
-#changing education variable 
-#observed_values <- imp_data$education[!is.na(imp_data$education)]
-#imp_data$education[is.na(imp_data$education)] <- sample(observed_values, size = sum(is.na(imp_data$education)), replace = TRUE)
-
-#changing ethnicity variable 
-#observed_values <- imp_data$ethnicity[!is.na(imp_data$ethnicity)]
-#imp_data$ethnicity[is.na(imp_data$ethnicity)] <- sample(observed_values, size = sum(is.na(imp_data$ethnicity)), replace = TRUE)
-
-#changing the TEE variable 
-#observed_values <- imp_data$TEE[!is.na(imp_data$TEE)]
-#imp_data$TEE[is.na(imp_data$TEE)] <- sample(observed_values, size = sum(is.na(imp_data$TEE)), replace = TRUE)
-
-#changing the Nitrogen variable 
-#observed_values <- imp_data$Nitrogen[!is.na(imp_data$Nitrogen)]
-#imp_data$Nitrogen[is.na(imp_data$Nitrogen)] <- sample(observed_values, size = sum(is.na(imp_data$Nitrogen)), replace = TRUE)
-
-#creating a new training set 
-#set.seed(1)
-#imp_train <- sample(1:nrow(imp_data), nrow(imp_data) *0.8)
-#imp_test <- dataset[-imp_train, "fat"]
-
 #bagged tree 
 set.seed(1)
 bag.tree <- randomForest(percent_fat ~., data = dataset, subset = train, mtry = 2198,
@@ -280,7 +242,7 @@ for (i in seq_along(n.trees_values)) {
   boost_models[[as.character(n.trees)]] <- boost_model
   
   # Make predictions on the test set
-  yhat.boost <- predict(boost_model, newdata = dataset[-train, ])
+  yhat.boost <- predict(boost_model, newdata = dataset[-train, ], n.trees = n.trees)
   
   # Calculate mean squared error
   mse <- mean((yhat.boost - test)^2)
@@ -317,7 +279,7 @@ for (i in seq_along(int.depth_values)) {
   boost_models[[as.character(int.depth)]] <- boost_model
   
   # Make predictions on the test set
-  yhat.boost <- predict(boost_model, newdata = dataset[-train, ])
+  yhat.boost <- predict(boost_model, newdata = dataset[-train, ], n.trees = 600)
   
   # Calculate mean squared error
   mse <- mean((yhat.boost - test)^2)
@@ -334,7 +296,7 @@ ggplot(results, aes(x = int.depth, y = mse)) +
   xlab("Interaction Depth") +
   ylab("Mean Squared Error")
 
-#the lowest one is 2: MSE = 22.97824``
+#the lowest one is 8: MSE = 22.97824``
 
 #changing the shrinkage 
 # Define the range of ntree values to test
@@ -348,11 +310,11 @@ for (i in seq_along(shrink_values)) {
   shrink <- shrink_values[i]
   
   # Train the random forest model
-  boost_model <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 600, interaction.depth = 2, shrinkage = shrink, verbose = F)
+  boost_model <- gbm(percent_fat ~ ., data = dataset[train, ], distribution = "gaussian", n.trees = 600, interaction.depth = 4, shrinkage = shrink, verbose = F)
   boost_models[[as.character(shrink)]] <- boost_model
   
   # Make predictions on the test set
-  yhat.boost <- predict(boost_model, newdata = dataset[-train, ])
+  yhat.boost <- predict(boost_model, newdata = dataset[-train, ], n.trees = 600)
   
   # Calculate mean squared error
   mse <- mean((yhat.boost - test)^2)
@@ -368,7 +330,7 @@ ggplot(results, aes(x = shrink, y = mse)) +
   geom_point() +
   xlab("shrink") +
   ylab("Mean Squared Error")
-# best shrink = 0.2, MSE = 21.87146
+# best shrink = 0.01, MSE = 22.02528
 
 #Bayesian Additive regression tree 
 x <- dataset[, 1:2198]
