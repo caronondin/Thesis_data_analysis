@@ -1,4 +1,4 @@
-####### THIS IS ALL USING THE NPAAS-OS DATASET ##########
+#data prep#
 #Libraries 
 library(tidyverse)
 library(dplyr)
@@ -7,82 +7,6 @@ library(readr)
 library(faraway)
 library(randomForest)
 library(tibble)
-
-#setting working directory to the NPAAS dataset
-NPAAS_OS_dir  <- '/Users/cnondin/Documents/THESIS/dataset/NPAAS_OS_dataset/'
-setwd(NPAAS_OS_dir)
-data <- read.csv('npaas_inv.csv')
-
-#creating a second dataset with the pertinent variables
-data_var <- data
-#selecting the demographic variables we need (+the outcome)
-data_var_select <- data_var %>% select(id, agev1, black, hispanic, othrace, bmi, cigsday, educcoll, 
-                    educlehs, texpwk, inc20to35, inc50to75, incge75, inclt20, bioenergy_TEE)
-
-#changing the age variable 
-# YOU WILL NEED TO CHANGE THE NB RANGE FOR THE FS DATASET! (the range is more spread out here)
-df <- data_var_select
-df$agev1[df$agev1 > 55 & df$agev1 <= 69] <- 0
-df$agev1[df$agev1 > 69 & df$agev1 <= 79] <- 1
-df$agev1[df$agev1 > 79 & df$agev1 <= 90] <- 2
-unique(df$agev1)
-data_var_select <- df
-
-#changing the ethnicity variable 
-df <- data_var_select
-ethnicity_df <- df %>% select(black, hispanic, othrace)
-ethnicity <- rowSums(ethnicity_df)
-df_ethn <- cbind(df, ethnicity)
-unique(df_ethn$ethnicity)
-data_var_select = subset(df_ethn, select = -c(black, hispanic, othrace))
-
-#changing the BMI variable 
-df <- data_var_select
-df$bmi[df$bmi > 16 & df$bmi <= 24] <- 0 #there are some underweight people in OS, but it shouldn't be a problem in the FS
-df$bmi[df$bmi > 24 & df$bmi <= 29] <- 1
-df$bmi[df$bmi > 29 & df$bmi <= 100] <- 2
-unique(df$bmi)
-data_var_select <- df
-
-#changing the cigsday variable 
-df <- data_var_select
-df$cigsday = ifelse(df$cigsday =="", 0, 1)
-unique(df$cigsday)
-data_var_select <- df
-
-#changing years of education
-df <- data_var_select
-#replacing NA to 3: 
-df$educcoll[is.na(df$educcoll)] <- 3
-df$educlehs[is.na(df$educlehs)] <- 3
-unique(df$educcoll)
-unique(df$educlehs)
-#changing educoll 1 value to 2 
-df$educcoll[df$educcoll == 1] <- 2
-unique(df$educcoll)
-# summing educoll and educlehs
-education_df <- df %>% select(educcoll, educlehs)
-edu <- rowSums(education_df)
-df_edu <- cbind(df, edu)
-unique(df_edu$edu)
-# changing 0 to 1 (some college) and 1 to 0 (HS or less) in the edu column and 6 to 3 (missing)
-df_edu$edu[df_edu$edu== 0]<-4 #did this cuz otherwise the 1s would turn into 0s in the next line. 
-df_edu$edu[df_edu$edu== 1]<-0
-df_edu$edu[df_edu$edu== 4]<-1
-df_edu$edu[df_edu$edu== 6]<-3
-unique(df_edu$edu)
-#deleting educoll and educlehs
-data_var_select = subset(df_edu, select = -c(educcoll, educlehs))
-
-#changing physical activity 
-df <- data_var_select 
-df$texpwk[df$texpwk >= 0 & df$texpwk <= 5.5] <- 0 
-df$texpwk[df$texpwk >= 5.6 & df$texpwk <= 12.25] <- 1 
-df$texpwk[df$texpwk >= 12.3 & df$texpwk <= 24.0] <- 2 
-df$texpwk[df$texpwk > 24] <- 3 
-df$texpwk[is.na(df$texpwk)] <- 4
-unique(df$texpwk)
-data_var_select <- df
 
 ##### USING THE NPAAS-FS dataset###########
 #setting the directory
@@ -368,6 +292,16 @@ df <- df[order(df$WHI_common_ID, decreasing=FALSE),, drop=FALSE]
 df <- df %>% select(WHI_common_ID, fat, percent_fat)
 outcome_df <- df
 
+##############making df for FFQ (this is for dataset 4)##################
+FFQ_df <- read.csv( "/Users/cnondin/Documents/THESIS/dataset/FFQ_baseline/FFQ_baseline.csv" )
+
+#selecting rows to only get IDs from the FS dataset
+list_ID_FS = as.list(demographic_df$WHI_COMMON_ID)
+FFQ_df <- FFQ_df[FFQ_df$ID %in% list_ID_FS,]
+FFQ_select <- FFQ_df %>%
+  group_by(ID) %>%
+  slice(1)
+
 ############ making the datasets ############
 #dataset 1 
 #metabolomic data only: adding ID, serum df, lipid df, urine df and outcome df
@@ -427,12 +361,22 @@ dataset_2 <- cbind(dataset_2, outcome)
 outcome <- dataset_3 %>% select(fat, percent_fat)
 dataset_3 = subset(dataset_3, select = -c(fat, percent_fat)) 
 dataset_3 <- cbind(dataset_3, outcome)
+
+#dataset 4
+#dataset 3 + FFQ
+dataset_4 <- cbind(dataset_3, FFQ_select)
+outcome <- dataset_4 %>% select(fat, percent_fat)
+dataset_4 = subset(dataset_4, select = -c(fat, percent_fat)) 
+dataset_4 <- cbind(dataset_4, outcome)
 #exporting the datasets 
 setwd("~/Documents/THESIS/dataset/datasets for analysis ")
 
 write.csv(dataset_1, 'dataset_1.csv')
 write.csv(dataset_2, 'dataset_2.csv')
 write.csv(dataset_3, 'dataset_3.csv')
+write.csv(dataset_4, 'dataset_4.csv')
 
-
-
+#exporting the dempgraphic df
+write.csv(demographic_df, '/Users/cnondin/Documents/THESIS/visuals/table_1/demographic_df.csv')
+write.csv(diet_biom_df, '/Users/cnondin/Documents/THESIS/visuals/table_1/diet_biom_df.csv')
+write.csv(outcome, '/Users/cnondin/Documents/THESIS/visuals/table_1/outcome_df.csv')
