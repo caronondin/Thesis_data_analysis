@@ -1,0 +1,46 @@
+library(ggplot2)
+
+fat_ds1 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/fat_ds1.csv')
+fat_ds2 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/fat_ds2.csv')
+fat_ds3 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/fat_ds3.csv')
+fat_ds4 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/fat_ds4.csv')
+prcnt_fat_ds1 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/prcnt_fat_ds1.csv')
+prcnt_fat_ds2 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/prcnt_fat_ds2.csv')
+prcnt_fat_ds3 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/prcnt_fat_ds3.csv')
+prcnt_fat_ds4 <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/prcnt_fat_ds4.csv')
+
+fat_ds1_plot=ggplot(data= fat_ds1, mapping=aes(x=model, y=R2))+geom_boxplot()
+fat_ds1_plot
+
+fat_ds2_plot=ggplot(data= fat_ds2, mapping=aes(x=model, y=R2))+geom_boxplot()
+fat_ds2_plot
+
+fat_ds3_plot=ggplot(data= fat_ds3, mapping=aes(x=model, y=R2))+geom_boxplot()
+fat_ds3_plot
+
+fat_ds4_plot=ggplot(data= fat_ds4, mapping=aes(x=model, y=R2))+geom_boxplot()
+fat_ds4_plot
+
+prcnt_fat_ds1_plot=ggplot(data= prcnt_fat_ds1, mapping=aes(x=model, y=R2))+geom_boxplot()
+prcnt_fat_ds1_plot
+
+prcnt_fat_ds2_plot=ggplot(data= prcnt_fat_ds2, mapping=aes(x=model, y=R2))+geom_boxplot()
+prcnt_fat_ds2_plot
+
+prcnt_fat_ds3_plot=ggplot(data= prcnt_fat_ds3, mapping=aes(x=model, y=R2))+geom_boxplot()
+prcnt_fat_ds3_plot
+
+prcnt_fat_ds4_plot=ggplot(data= prcnt_fat_ds4, mapping=aes(x=model, y=R2))+geom_boxplot()
+prcnt_fat_ds4_plot
+
+#making a boxplot with the best ones
+
+best_fat <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/best_models/best_fat.csv')
+
+best_fat_plot=ggplot(data= best_fat, mapping=aes(x=model, y=R2))+geom_boxplot()
+best_fat_plot
+
+best_prcnt_fat <- read.csv('/Users/cnondin/Documents/THESIS/CV_results/boxplot_R2/best_models/best_prcnt_fat.csv')
+
+best_prcnt_fat_plot=ggplot(data= best_prcnt_fat, mapping=aes(x=model, y=R2))+geom_boxplot()
+best_prcnt_fat_plot
