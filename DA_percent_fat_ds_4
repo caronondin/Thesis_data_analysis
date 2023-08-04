@@ -1,0 +1,139 @@
+######## using CV to predict percent fat content using dataset 4############
+library(caret)
+library(rpart.plot)
+library(tidyverse)
+library(bartMachine)
+library(glmnet)
+library(xgboost)
+library(ranger)
+
+#opening the datasets 
+dataset_1 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_1.csv')
+dataset_2 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_2.csv')
+dataset_3 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_3.csv')
+dataset_4 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_4.csv')
+
+#removing the percent fat column 
+dataset <- subset(dataset_4, select = -fat)
+
+set.seed(1)
+
+# Train Test Split 
+split_index <- createDataPartition(dataset$percent_fat, p = .8, 
+                                   list = FALSE, 
+                                   times = 5)
+#split_index_mat <- matrix(unlist(split_index), ncol = 1)
+num_iterations <- ncol(split_index)
+MSE_df <- data.frame(matrix(NA, nrow = num_iterations, ncol = 5))
+colnames(MSE_df) <- c('pruning', 'rf', 'boosted', 'LASSO', 'fold') #remember to add BART if you figure out how it works 
+fold_numbers <- 1:num_iterations
+var_df <- data.frame(matrix(NA, nrow = num_iterations, ncol = 2))
+colnames(var_df) <- c('test var', 'fold')
+
+for (i in 1:num_iterations) {
+  # use ith column of split_index to create feature and target training/test sets
+  train <- dataset[ split_index[,i], ] 
+  test  <- dataset[-split_index[,i], ]
+  features_train <- dataset[ split_index[,i], !(names(dataset) %in% c('percent_fat'))] 
+  features_test  <- dataset[-split_index[,i], !(names(dataset) %in% c('percent_fat'))]
+  target_train <- dataset[ split_index[,i], "percent_fat"]
+  target_test <- dataset[-split_index[,i], "percent_fat"]
+  
+  #prunned tree
+  ctrl<- trainControl(method="cv", number=5)
+  
+  d.tree <- train(percent_fat ~., 
+                  data =train,
+                  trControl = ctrl,
+                  metric = "Rsquared",
+                  method = "rpart")
+  
+  #random forest
+  r.forest <- train(percent_fat ~., 
+                    data = train,
+                    trControl = ctrl,
+                    metric = "Rsquared",
+                    method = "ranger", 
+                    importance = "impurity")
+  
+  #boosted tree
+  xg.boost <- train(percent_fat ~., 
+                    data = train, 
+                    trControl = ctrl,
+                    metric = "Rsquared",
+                    method = "xgbTree")
+  
+  # bart <- bartMachine(
+  #    X = train[, !names(train) %in% "percent_fat"],
+  #   y = train$percent_fat,
+  #  )
+  
+  #Bayesian Additive Regression Tree
+  # BART <- train(
+  #  percent_fat ~ .,                  
+  ## data = train,             
+  #  method = bart_model, 
+  #  metric = "Rsquared", 
+  #trControl = ctrl          
+  #)
+  
+  #LASSO
+  lasso<-train(y= target_train,
+               x = features_train,
+               trControl = ctrl, 
+               metric = "Rsquared",
+               method = 'glmnet', 
+               tuneGrid = expand.grid(alpha = 1, lambda = 1)
+               
+  ) 
+  
+  #predicting for test
+  
+  # Decision Tree 
+  pruned_pred = predict(d.tree, test)
+  # Random Forest
+  rf_pred = predict(r.forest, test)
+  # XGBoost
+  boost_pred = predict(xg.boost, test)
+  #BART
+  # bart_pred = predict(bart, test)
+  #LASSO
+  lasso_pred = predict(lasso, test)
+  
+  # Print R squared scores
+  prune_MSE = mean((pruned_pred - target_test)^2)
+  rf_MSE = mean((rf_pred - target_test)^2)
+  boost_MSE = mean((rf_pred - target_test)^2)
+  #add one for BART here 
+  lasso_MSE = mean((lasso_pred - target_test)^2)
+  #rf_R2 = R2(rf_pred, test$percent_fat)
+  # boost_R2 = R2(boost_pred, test$percent_fat)
+  #bart_R2 = R2(bart_pred, test$percent_fat)
+  #lasso_R2 = R2(lasso_pred, test$percent_fat)
+  
+  MSE_df[i,'pruning'] <- prune_MSE
+  MSE_df[i,'rf'] <- rf_MSE
+  MSE_df[i,'boosted'] <- boost_MSE
+  #MSE_df[i,'BART'] <- bart_MSE
+  MSE_df[i,'LASSO'] <- lasso_MSE
+  MSE_df[i,'fold'] <- i
+  
+  #saving the variance of the test set (to calculate R2 later)
+  var_df[i,'test var'] <- var(target_test)
+  var_df[i, 'fold'] <- i
+  
+  print(paste(i, "th fold is finished"))
+}
+
+#exproting the datasets
+
+write.csv(MSE_df, '/Users/cnondin/Documents/THESIS/CV_results/prcnt_fat_ds4/MSE_prcnt_fat_ds4.csv')
+write.csv(var_df, '/Users/cnondin/Documents/THESIS/CV_results/prcnt_fat_ds4/var_prcnt_fat_ds4.csv')
+
+#variable importance random forest 
+var_importance <- vip::vip(xg.boost, num_features = 20)
+print(var_importance)
+
+importance.ranger(r.forest)
+plot(r.forest)
+plot(r.forest$importance)
