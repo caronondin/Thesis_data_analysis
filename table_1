@@ -1,0 +1,73 @@
+library(table1)
+demographic_df <- read.csv('/Users/cnondin/Documents/THESIS/visuals/table_1/demographic_df.csv')
+diet_biom_df <- read.csv('/Users/cnondin/Documents/THESIS/visuals/table_1/diet_biom_df.csv')
+outcome_df <- read.csv('/Users/cnondin/Documents/THESIS/visuals/table_1/outcome_df.csv')
+
+table1_df <- cbind(demographic_df, diet_biom_df, outcome_df)
+
+table1_df$agev1_FS <- 
+  factor(table1_df$agev1_FS, levels=c(0,1,2),
+         labels=c("60-69", 
+                  "70-79", 
+                  "80-85"))
+table1_df$BMI_V1 <- 
+  factor(table1_df$BMI_V1, levels=c(0,1,2),
+         labels=c("Normal (<25.0)", 
+                  "Overweight (25-30)", 
+                  "Obese (>30)"))
+
+table1_df$anysupp <- 
+  factor(table1_df$anysupp, levels=c(0,1),
+         labels=c("No", 
+                  "Yes"))
+
+table1_df$ethnicity <- 
+  factor(table1_df$ethnicity, levels=c(0,1),
+         labels=c("Caucasian", 
+                  "Non-Caucasian"))
+
+table1_df$cignow <- 
+  factor(table1_df$cignow, levels=c(0,1),
+         labels=c("No", 
+                  "Yes"))
+
+table1_df$season <- 
+  factor(table1_df$season, levels=c(0,1,2,3),
+         labels=c("Spring", 
+                  "Summer", 
+                  "Fall",
+                  "Winter"))
+
+table1_df$education <- 
+  factor(table1_df$education, levels=c(0,1,2),
+         labels=c("High school/General Educational Development diploma", 
+                  "Schooling after high school", 
+                  "College degree or higher"))
+table1_df$PA_wk <- 
+  factor(table1_df$PA_wk, levels=c(0,1,2,3),
+         labels=c("0–5.5", 
+                  "5.6–12.25", 
+                  "12.3–24.0",
+                  "> 24"))
+
+label(table1_df$agev1_FS)       <- "Age"
+label(table1_df$BMI_V1)       <- "BMI"
+label(table1_df$anysupp)       <- "Use of any Dietary Supplements"
+label(table1_df$ethnicity)       <- "Race/Ethnicity"
+label(table1_df$cignow)       <- "Currently Smoking"
+label(table1_df$season)       <- "Season of study participation"
+label(table1_df$education)       <- "Years of Education"
+label(table1_df$PA_wk)       <- "Recreational physical activity"
+label(table1_df$Ein)       <- "Total Energy Intake"
+label(table1_df$fat)       <- "Fat"
+label(table1_df$percent_fat)  <- "Fat"
+
+
+units(table1_df$agev1_FS) <- "years"
+units(table1_df$BMI_V1)    <- "kg/m2"
+units(table1_df$PA_wk)       <- "MET/week"
+units(table1_df$Ein)       <- "kcal/d"
+units(table1_df$fat)       <- "g/d"
+units(table1_df$percent_fat) <- "%E"
+
+table1(~ agev1_FS + ethnicity + education + BMI_V1 + anysupp + cignow + season + PA_wk + Ein + fat + percent_fat, data=table1_df)
