@@ -1,0 +1,81 @@
+######## variable importance for BART dataset 2############
+library(caret)
+library(rpart.plot)
+library(tidyverse)
+library(bartMachine)
+library(glmnet)
+
+#opening the datasets 
+dataset_2 <- read.csv('/Users/cnondin/Documents/THESIS/dataset/datasets for analysis /dataset_2.csv')
+
+#removing the percent fat column 
+dataset <- subset(dataset_2, select = -percent_fat)
+
+set.seed(1)
+
+# Train Test Split 
+split_index <- createDataPartition(dataset$fat, p = .8, 
+                                   list = FALSE, 
+                                   times = 5)
+#split_index_mat <- matrix(unlist(split_index), ncol = 1)
+num_iterations <- ncol(split_index)
+MSE_df <- data.frame(matrix(NA, nrow = num_iterations, ncol = 1))
+colnames(MSE_df) <- c('BART') #remember to add BART if you figure out how it works 
+fold_numbers <- 1:num_iterations
+var_df <- data.frame(matrix(NA, nrow = num_iterations, ncol = 2))
+colnames(var_df) <- c('test var', 'fold')
+
+#grid for the BART model
+bartGrid <- expand.grid(num_trees = c(10, 15, 20, 100), k = 2, alpha = 0.95, beta = 2, nu = 3)
+
+for (i in 1:num_iterations) {
+  # use ith column of split_index to create feature and target training/test sets
+  train <- dataset[ split_index[,i], ] 
+  test  <- dataset[-split_index[,i], ]
+  features_train <- dataset[ split_index[,i], !(names(dataset) %in% c('fat'))] 
+  features_test  <- dataset[-split_index[,i], !(names(dataset) %in% c('fat'))]
+  target_train <- dataset[ split_index[,i], "fat"]
+  target_test <- dataset[-split_index[,i], "fat"]
+  
+  #Bayesian Additive Regression Tree
+  ctrl<- trainControl(method="cv", number=5)
+  BART <- train(fat ~., 
+                train,
+                trControl = ctrl,
+                metric = "Rsquared",
+                method = "bartMachine", 
+                preProc = c("center", "scale"),
+                tuneGrid = bartGrid,  
+                num_burn_in = 2000, 
+                num_iterations_after_burn_in = 2000, 
+                serialize = T)
+               
+  
+  #predicting for test
+  
+  #BART
+  bart_pred = predict(BART, test)
+
+  
+  # Print R squared scores
+
+  bart_MSE = mean((bart_pred - target_test)^2)
+
+
+  MSE_df[i,'BART'] <- bart_MSE
+
+  
+  #saving the variance of the test set (to calculate R2 later)
+  var_df[i,'test var'] <- var(target_test)
+  var_df[i, 'fold'] <- i
+  
+  print(paste(i, "th fold is finished"))
+}
+
+#saving the model
+saveRDS(BART, file = '/Users/cnondin/Documents/THESIS/R code /ML_models/fat_ds2_BART.rda')
+
+BART <- readRDS('/Users/cnondin/Documents/THESIS/R code /ML_models/fat_ds2_BART.rda')
+
+BARTImp <- varImp(BART, scale = FALSE)
+BARTImp
